@@ -84,56 +84,75 @@ router.post("/chat/message", async (req, res) => {
     const createParams: Record<string, unknown> = {
       model: config.model,
       instructions: config.assistant_instructions,
-      input: message,
+      input: attachedFileId
+        ? [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: message },
+                { type: "file", file: { file_id: attachedFileId } },
+              ],
+            },
+          ]
+        : message,
       tools: [
         {
           type: "file_search",
           vector_store_ids: [config.vector_store_id],
         },
       ],
+      stream: true,
     };
-
-    if (attachedFileId) {
-      createParams["input"] = [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: message },
-            {
-              type: "file",
-              file: { file_id: attachedFileId },
-            },
-          ],
-        },
-      ];
-    }
 
     if (previousResponseId) {
       createParams["previous_response_id"] = previousResponseId;
     }
 
-    const response = await (openai.responses.create as (p: Record<string, unknown>) => Promise<{
-      id: string;
-      output_text: string;
-      output: Array<{
-        content?: Array<{
-          annotations?: Array<{ type?: string; filename?: string }>;
+    type StreamEvent = {
+      type: string;
+      delta?: string;
+      response?: {
+        id: string;
+        output?: Array<{
+          content?: Array<{
+            annotations?: Array<{ type?: string; filename?: string }>;
+          }>;
         }>;
-      }>;
-    }>)(createParams);
+      };
+    };
 
-    const responseId = response.id;
-    const outputText = response.output_text ?? "";
+    const stream = (await (
+      openai.responses.create as (p: Record<string, unknown>) => Promise<AsyncIterable<StreamEvent>>
+    )(createParams));
 
+    let responseId: string | null = null;
     const citationSet = new Set<string>();
-    if (response.output && Array.isArray(response.output)) {
-      for (const outputItem of response.output) {
-        if (outputItem.content && Array.isArray(outputItem.content)) {
-          for (const contentItem of outputItem.content) {
-            if (contentItem.annotations && Array.isArray(contentItem.annotations)) {
-              for (const ann of contentItem.annotations) {
-                if (ann.type === "file_citation" && ann.filename) {
-                  citationSet.add(ann.filename);
+
+    for await (const event of stream) {
+      if (event.type === "response.created" && event.response?.id) {
+        responseId = event.response.id;
+      }
+
+      if (event.type === "response.output_text.delta" && event.delta) {
+        res.write(`data: ${JSON.stringify({ content: event.delta })}\n\n`);
+      }
+
+      if (event.type === "response.completed" && event.response) {
+        if (event.response.id) responseId = event.response.id;
+
+        const output = event.response.output;
+        if (Array.isArray(output)) {
+          for (const item of output) {
+            const content = item.content;
+            if (Array.isArray(content)) {
+              for (const c of content) {
+                const annotations = c.annotations;
+                if (Array.isArray(annotations)) {
+                  for (const ann of annotations) {
+                    if (ann.type === "file_citation" && ann.filename) {
+                      citationSet.add(ann.filename);
+                    }
+                  }
                 }
               }
             }
@@ -143,8 +162,6 @@ router.post("/chat/message", async (req, res) => {
     }
 
     const citations = Array.from(citationSet).map((filename) => ({ filename }));
-
-    res.write(`data: ${JSON.stringify({ content: outputText })}\n\n`);
     res.write(`data: ${JSON.stringify({ done: true, responseId, citations })}\n\n`);
     res.end();
   } catch (err) {

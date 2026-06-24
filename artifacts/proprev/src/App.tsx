@@ -8,8 +8,7 @@ import { useChat } from "@/hooks/use-chat";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Terminal } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Sparkles, Terminal, RotateCcw } from "lucide-react";
 
 const queryClient = new QueryClient();
 
@@ -23,14 +22,14 @@ function Chat() {
     isUploading,
     attachedFile,
     removeAttachedFile,
+    resetConversation,
   } = useChat();
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isStreaming]);
+  }, [messages]);
 
   if (isConfigLoading) {
     return (
@@ -41,17 +40,17 @@ function Chat() {
   }
 
   const assistantName = config?.assistantName || "Prevy";
-  const welcomeMessage = config?.welcomeMessage || "Ready to focus?";
+  const welcomeMessage = config?.welcomeMessage || "Need help organizing?";
   const starterQuestions = config?.starterQuestions || [
     "Help me plan my week's assignments",
     "I have 3 assignments due Friday — where do I start?",
     "How do I break a big project into steps?",
-    "Make me a study checklist for tomorrow"
+    "Make me a study checklist for tomorrow",
   ];
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden selection:bg-primary/30">
-      {/* Header / Navbar */}
+      {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-background/80 backdrop-blur-md z-10 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
@@ -59,9 +58,24 @@ function Chat() {
           </div>
           <span className="font-bold tracking-tight text-foreground text-lg">ProPrev</span>
         </div>
-        <div className="px-3 py-1 rounded-full bg-secondary/50 border border-border/50 text-xs font-medium text-muted-foreground flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-          {assistantName} Online
+
+        <div className="flex items-center gap-3">
+          {messages.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetConversation}
+              data-testid="button-new-conversation"
+              className="text-muted-foreground hover:text-foreground gap-1.5 text-xs"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              New chat
+            </Button>
+          )}
+          <div className="px-3 py-1 rounded-full bg-secondary/50 border border-border/50 text-xs font-medium text-muted-foreground flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            {assistantName} Online
+          </div>
         </div>
       </header>
 
@@ -83,6 +97,7 @@ function Chat() {
               {starterQuestions.map((q, idx) => (
                 <button
                   key={idx}
+                  data-testid={`button-starter-question-${idx}`}
                   onClick={() => sendMessage(q)}
                   className="flex items-center text-left p-4 rounded-xl bg-card border border-border/50 hover:bg-secondary hover:border-primary/50 transition-all duration-300 group shadow-sm hover:shadow-md"
                 >
@@ -98,7 +113,7 @@ function Chat() {
             {messages.map((msg) => (
               <MessageBubble key={msg.id} message={msg} />
             ))}
-            <div ref={bottomRef} className="h-1" />
+            <div ref={bottomRef} className="h-6" />
           </div>
         )}
       </main>
@@ -119,7 +134,6 @@ function Chat() {
 }
 
 function App() {
-  // Force dark mode
   useEffect(() => {
     document.documentElement.classList.add("dark");
   }, []);
