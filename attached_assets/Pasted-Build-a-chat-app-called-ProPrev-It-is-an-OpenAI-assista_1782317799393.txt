@@ -1,0 +1,39 @@
+Build a chat app called "ProPrev". It is an OpenAI assistant named "Prevy". Unzip `replit_project.zip` first. Pick whichever stack you think will produce the nicest-looking app. Python or TypeScript/React are both fine.
+
+ABOUT THE CORPUS: Planning and Organzing data, Information Organization data. (already lives in an OpenAI vector store; load it and keep it as-is, do not rebuild the corpus.)
+WELCOME MESSAGE: Need help organizing?
+HOW IT SHOULD WORK: Dark mode
+VISUAL STYLE: Futuristic, navy blue and black backgrounds, white font.
+
+ASSISTANT SYSTEM PROMPT (use verbatim):
+Say HI!, HELLO!, or WHAT'S UP before answering. You are a straight forward and supportive AI assistant to help students make a checklist for assignments to help stop procrastination.
+Create me an AI assistant whose role is to be like a planner and analyst for time management with school assignments.
+The goal I want it to achieve is to make a checklist or short plan, depending on the number and weight of assignments, for students to prevent procrastination and have great time management.
+The tone of the assistant is to be straight forward and to the point, with support.
+A safety rule I want to have is give some break times in between each assignment to keep the student engaged and not overwhelmed.
+Provide help with the assignments and how to break it down for the easiest way to get it done.
+Ensure less work loads per assignment, decline too much work or break from a user who put in too much of one thing and try to help make suggestions.
+When answering questions, use only the information accessible from the uploaded corpus. When citing, explicitly mention the document filename in square brackets, for example: [document.pdf].
+
+VISUAL POLISH. Aim for a polished, product-quality UI:
+- Hero section at the top with the assistant's name and a one-line tagline.
+- 3 to 4 suggested starter questions the user can click.
+- Style citations as expandable references, not raw text.
+- Use the Inter font and a mobile-friendly layout.
+- Make it feel like a real product, not a default chat demo.
+
+IMPLEMENTATION. Must do:
+- Read the OpenAI API key from environment variables. NEVER hardcode it.
+  Python: `os.environ["OPENAI_API_KEY"]`
+  Node/TypeScript: `process.env.OPENAI_API_KEY`
+  Replit's Secrets are exposed as env vars, so this is how the app reads the key.
+- Use the OpenAI **Responses API** (`client.responses.create()`), NOT the deprecated Assistants API.
+- OpenAI SDK v2 API paths: `client.vector_stores` is TOP-LEVEL. `client.responses` is also TOP-LEVEL.
+- Do NOT use `client.beta.assistants`, `client.beta.threads`, or `client.beta.runs` — those are deprecated.
+- Load `vector_store_id` from `config.json` and keep this vector store attached and unchanged — it already holds the full corpus, so do not rebuild or re-upload the corpus.
+- Let users upload their own documents in the chat. Upload each file to OpenAI with `purpose="assistants"`, then attach it to that user's message using `attachments=[{"file_id": file_id, "tools": [{"type": "file_search"}]}]`. The Assistants API then searches BOTH the existing corpus vector store and the uploaded file, so the original corpus is always used and uploads stay scoped to that conversation. `file_search` reads text documents (PDF, txt, docx, md), not images.
+- At startup: read `assistant_name`, `assistant_instructions`, and `vector_store_id` from `config.json`. No need to create an assistant object — just use these values in each `client.responses.create()` call.
+- For each user message call: `client.responses.create(model=model, instructions=assistant_instructions, input=user_message, tools=[{"type": "file_search", "vector_store_ids": [vector_store_id]}], previous_response_id=prev_id)` (omit `previous_response_id` for the first message in a session).
+- Store the returned `response.id` as `previous_response_id` to chain conversation turns.
+- Chat interface: streaming responses with citations.
+- Response text: `response.output_text`. Citations are in `response.output[i].content[j].annotations` where `ann.type == "file_citation"` and `ann.filename` gives the source file name.
