@@ -5,16 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-export interface HealthStatus {
-  status: string;
-}
-
-export interface ChatConfig {
-  assistantName: string;
-  welcomeMessage: string;
-  model: string;
-  starterQuestions: string[];
-}
 
 export interface MessageInput {
   message: string;
@@ -23,9 +13,3 @@ export interface MessageInput {
   /** @nullable */
   attachedFileId?: string | null;
 }
-
-export interface FileUploadResult {
-  fileId: string;
-  filename: string;
-}
-

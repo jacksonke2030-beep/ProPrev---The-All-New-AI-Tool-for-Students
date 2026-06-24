@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: chat
+    description: Chat operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,49 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /chat/config:
+    get:
+      operationId: getChatConfig
+      tags: [chat]
+      summary: Get chat configuration
+      description: Returns assistant name and welcome message
+      responses:
+        "200":
+          description: Chat config
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatConfig"
+  /chat/message:
+    post:
+      operationId: sendMessage
+      tags: [chat]
+      summary: Send a chat message (SSE streaming)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "200":
+          description: SSE stream of response chunks
+          content:
+            text/event-stream:
+              schema:
+                type: string
+  /chat/upload:
+    post:
+      operationId: uploadFile
+      tags: [chat]
+      summary: Upload a file for file search
+      responses:
+        "200":
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FileUploadResult"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +78,42 @@ components:
           type: string
       required:
         - status
-
+    ChatConfig:
+      type: object
+      properties:
+        assistantName:
+          type: string
+        welcomeMessage:
+          type: string
+        model:
+          type: string
+        starterQuestions:
+          type: array
+          items:
+            type: string
+      required:
+        - assistantName
+        - welcomeMessage
+        - model
+        - starterQuestions
+    MessageInput:
+      type: object
+      properties:
+        message:
+          type: string
+        previousResponseId:
+          type: ["string", "null"]
+        attachedFileId:
+          type: ["string", "null"]
+      required:
+        - message
+    FileUploadResult:
+      type: object
+      properties:
+        fileId:
+          type: string
+        filename:
+          type: string
+      required:
+        - fileId
+        - filename
