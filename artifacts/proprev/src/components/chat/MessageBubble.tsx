@@ -146,13 +146,26 @@ export function MessageBubble({ message, onStartTimer }: MessageBubbleProps) {
         {/* Avatar */}
         <div
           className={cn(
-            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm mt-1",
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border shadow-sm mt-1 overflow-hidden",
             isUser
               ? "bg-primary text-primary-foreground border-primary/20"
-              : "bg-card text-accent border-border"
+              : message.isStreaming
+                ? "bg-[#030c1a] border-cyan-500/60 shadow-[0_0_12px_2px_rgba(0,220,255,0.35)]"
+                : "bg-[#030c1a] border-cyan-500/20"
           )}
         >
-          {isUser ? <User className="h-4 w-4" /> : <Cpu className="h-4 w-4" />}
+          {isUser ? (
+            <User className="h-4 w-4" />
+          ) : (
+            <img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="Prevy"
+              className={cn(
+                "h-full w-full object-cover",
+                message.isStreaming && "animate-pulse"
+              )}
+            />
+          )}
         </div>
 
         <div className="flex flex-col gap-2 min-w-0 w-full">

@@ -168,8 +168,8 @@ function Chat() {
             <Menu className="h-5 w-5" />
           </button>
 
-          <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
-            <Terminal className="h-4 w-4" />
+          <div className="h-8 w-8 rounded-lg overflow-hidden border border-cyan-500/20 bg-[#030c1a] shadow-[0_0_8px_1px_rgba(0,220,255,0.15)]">
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="ProPrev" className="h-full w-full object-cover" />
           </div>
           <span className="font-bold tracking-tight text-foreground text-lg">ProPrev</span>
         </div>
@@ -222,8 +222,8 @@ function Chat() {
       <main className="flex-1 overflow-y-auto w-full scroll-smooth">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center min-h-full py-20 px-4">
-            <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-white/5 flex items-center justify-center mb-8 shadow-2xl shadow-primary/10">
-              <Sparkles className="h-10 w-10 text-primary" />
+            <div className="h-20 w-20 rounded-2xl overflow-hidden border border-cyan-500/30 bg-[#030c1a] mb-8 shadow-2xl shadow-cyan-500/20">
+              <img src={`${import.meta.env.BASE_URL}logo.png`} alt="ProPrev" className="h-full w-full object-cover" />
             </div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4 text-center tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
               {welcomeMessage}

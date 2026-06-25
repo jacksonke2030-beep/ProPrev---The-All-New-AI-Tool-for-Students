@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "_uFB3HiCnAlYyQWWzi2PP"
+uri = "file://artifacts/proprev/public/logo.png"
+type = "image"
+title = "proprev futuristic logo"
