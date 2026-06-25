@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -9,8 +9,12 @@ import { MessageBubble } from "@/components/chat/MessageBubble";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { Button } from "@/components/ui/button";
 import { Sparkles, Terminal, RotateCcw } from "lucide-react";
+import { AnimatePresence } from "framer-motion";
+import { PomodoroTimer, TimerHeaderButton } from "@/components/timer/PomodoroTimer";
 
 const queryClient = new QueryClient();
+
+const FOCUS_TOTAL = 25 * 60;
 
 function Chat() {
   const { data: config, isLoading: isConfigLoading } = useGetChatConfig();
@@ -26,6 +30,20 @@ function Chat() {
   } = useChat();
 
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Timer state — lifted here so the header badge stays in sync with the panel
+  const [timerOpen, setTimerOpen] = useState(false);
+  const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
+  const [timerRunning, setTimerRunning] = useState(false);
+
+  // Callback so PomodoroTimer can report its current state up for the badge
+  const handleTimerState = useCallback(
+    (seconds: number, running: boolean) => {
+      setTimerSeconds(seconds);
+      setTimerRunning(running);
+    },
+    []
+  );
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -51,7 +69,7 @@ function Chat() {
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden selection:bg-primary/30">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-background/80 backdrop-blur-md z-10 shrink-0">
+      <header className="relative flex items-center justify-between px-6 py-4 border-b border-border/40 bg-background/80 backdrop-blur-md z-10 shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
             <Terminal className="h-4 w-4" />
@@ -59,7 +77,15 @@ function Chat() {
           <span className="font-bold tracking-tight text-foreground text-lg">ProPrev</span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* Pomodoro timer button */}
+          <TimerHeaderButton
+            active={timerOpen}
+            onClick={() => setTimerOpen((o) => !o)}
+            secondsLeft={timerSeconds !== null && timerSeconds !== FOCUS_TOTAL ? timerSeconds : null}
+            running={timerRunning}
+          />
+
           {messages.length > 0 && (
             <Button
               variant="ghost"
@@ -72,11 +98,22 @@ function Chat() {
               New chat
             </Button>
           )}
+
           <div className="px-3 py-1 rounded-full bg-secondary/50 border border-border/50 text-xs font-medium text-muted-foreground flex items-center gap-2">
             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             {assistantName} Online
           </div>
         </div>
+
+        {/* Timer panel (dropdown) */}
+        <AnimatePresence>
+          {timerOpen && (
+            <PomodoroTimer
+              onClose={() => setTimerOpen(false)}
+              onStateChange={handleTimerState}
+            />
+          )}
+        </AnimatePresence>
       </header>
 
       {/* Main Scrollable Area */}
