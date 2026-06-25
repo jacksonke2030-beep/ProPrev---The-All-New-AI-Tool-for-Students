@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Message } from "@/hooks/use-chat";
 import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Cpu, User, Copy, Check, Timer, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { TaskTracker, extractTasks } from "@/components/chat/TaskTracker";
 
 // ---------------------------------------------------------------------------
 // Timer suggestion detection
@@ -20,30 +21,22 @@ function detectTimerSuggestion(content: string): TimerSuggestion | null {
   if (!content || content.length < 40) return null;
 
   const hasPlanStructure =
-    /^(\d+\.|[-•*])\s/m.test(content) || // numbered/bullet list
+    /^(\d+\.|[-•*])\s/m.test(content) ||
     /checklist|step \d|task \d/i.test(content);
 
   const hasTimeKeyword =
-    /session|pomodoro|focus block|study block|work block|break time|minutes?\s+(of\s+)?(work|study|focus)/i.test(
-      content
-    );
+    /session|pomodoro|focus block|study block|work block|break time|minutes?\s+(of\s+)?(work|study|focus)/i.test(content);
 
   const hasMinutes = /\d+\s*[-–]?\s*min(ute)?s?/i.test(content);
 
-  // Need at least a plan structure + a time reference OR explicit session mention
   if (!hasPlanStructure && !hasTimeKeyword) return null;
   if (!hasMinutes && !hasTimeKeyword) return null;
 
-  // Extract session count (e.g. "3 sessions", "2 Pomodoros", "4 focus blocks")
-  const sessionMatch = content.match(
-    /(\d+)\s*(session|pomodoro|focus block|study block)/i
-  );
+  const sessionMatch = content.match(/(\d+)\s*(session|pomodoro|focus block|study block)/i);
   const sessions = sessionMatch ? Math.min(parseInt(sessionMatch[1]), 8) : 1;
 
-  // Extract a per-session duration — prefer 25 if none found
   const minuteMatch = content.match(/(\d+)\s*[-–]?\s*min(ute)?s?/i);
   const rawMinutes = minuteMatch ? parseInt(minuteMatch[1]) : 25;
-  // Clamp to sensible Pomodoro range (5–60)
   const minutes = Math.min(Math.max(rawMinutes, 5), 60);
 
   const label =
@@ -83,6 +76,11 @@ export function MessageBubble({ message, onStartTimer }: MessageBubbleProps) {
       ? detectTimerSuggestion(message.content)
       : null;
 
+  const tasks = useMemo(
+    () => (!isUser && !message.isStreaming && message.content ? extractTasks(message.content) : []),
+    [isUser, message.isStreaming, message.content]
+  );
+
   return (
     <div
       className={cn(
@@ -108,7 +106,7 @@ export function MessageBubble({ message, onStartTimer }: MessageBubbleProps) {
           {isUser ? <User className="h-4 w-4" /> : <Cpu className="h-4 w-4" />}
         </div>
 
-        <div className="flex flex-col gap-2 min-w-0">
+        <div className="flex flex-col gap-2 min-w-0 w-full">
           {/* Bubble */}
           <div
             className={cn(
@@ -128,7 +126,7 @@ export function MessageBubble({ message, onStartTimer }: MessageBubbleProps) {
                       [&>*:first-child]:mt-0 [&>*:last-child]:mb-0
                       [&_h1]:text-foreground [&_h1]:text-lg [&_h1]:font-bold [&_h1]:mb-2 [&_h1]:mt-4
                       [&_h2]:text-foreground [&_h2]:text-base [&_h2]:font-semibold [&_h2]:mb-2 [&_h2]:mt-3
-                      [&_h3]:text-foreground [&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-3
+                      [&_h3]:text-foreground [&_h3]:text-[13px] [&_h3]:font-semibold [&_h3]:mb-1 [&_h3]:mt-3
                       [&_p]:text-card-foreground [&_p]:mb-2 [&_p]:leading-relaxed
                       [&_ul]:list-disc [&_ul]:ml-4 [&_ul]:mb-2 [&_ul]:space-y-1
                       [&_ol]:list-decimal [&_ol]:ml-4 [&_ol]:mb-2 [&_ol]:space-y-1
@@ -150,7 +148,7 @@ export function MessageBubble({ message, onStartTimer }: MessageBubbleProps) {
                   </div>
                 )}
 
-                {/* Copy button — appears on hover for assistant messages */}
+                {/* Copy button */}
                 {!isUser && !message.isStreaming && (
                   <button
                     onClick={handleCopy}
@@ -182,6 +180,9 @@ export function MessageBubble({ message, onStartTimer }: MessageBubbleProps) {
             )}
           </div>
 
+          {/* Interactive task checklist */}
+          {tasks.length > 0 && <TaskTracker tasks={tasks} />}
+
           {/* Citations */}
           {message.citations && message.citations.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-1 pb-1">
@@ -198,7 +199,7 @@ export function MessageBubble({ message, onStartTimer }: MessageBubbleProps) {
                 initial={{ opacity: 0, y: -4, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.97 }}
-                transition={{ delay: 0.4, duration: 0.25 }}
+                transition={{ delay: 0.6, duration: 0.25 }}
                 className="flex items-center gap-2 mt-0.5"
               >
                 <button
