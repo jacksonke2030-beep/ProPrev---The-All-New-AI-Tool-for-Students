@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -10,10 +10,54 @@ import { MessageBubble } from "@/components/chat/MessageBubble";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ConversationsSidebar } from "@/components/sidebar/ConversationsSidebar";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Terminal, RotateCcw, Menu } from "lucide-react";
-import { AnimatePresence } from "framer-motion";
+import { Sparkles, Terminal, RotateCcw, Menu, Quote } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { PomodoroTimer, TimerHeaderButton } from "@/components/timer/PomodoroTimer";
 import { SavedConversation } from "@/hooks/use-conversations";
+
+// ---------------------------------------------------------------------------
+// Daily motivational quote — rotates by day of year
+// ---------------------------------------------------------------------------
+const QUOTES = [
+  { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+  { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
+  { text: "Action is the foundational key to all success.", author: "Pablo Picasso" },
+  { text: "The future depends on what you do today.", author: "Mahatma Gandhi" },
+  { text: "Small daily improvements over time lead to stunning results.", author: "Robin Sharma" },
+  { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson" },
+  { text: "It always seems impossible until it's done.", author: "Nelson Mandela" },
+  { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
+  { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
+  { text: "Success is the sum of small efforts repeated day in and day out.", author: "Robert Collier" },
+  { text: "Push yourself, because no one else is going to do it for you.", author: "Unknown" },
+  { text: "Great things never come from comfort zones.", author: "Unknown" },
+  { text: "Dream it. Wish it. Do it.", author: "Unknown" },
+  { text: "Hard work beats talent when talent doesn't work hard.", author: "Tim Notke" },
+  { text: "Procrastination is the thief of time.", author: "Edward Young" },
+  { text: "You are capable of more than you know.", author: "Unknown" },
+  { text: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
+  { text: "Every expert was once a beginner.", author: "Helen Hayes" },
+  { text: "Discipline is the bridge between goals and accomplishment.", author: "Jim Rohn" },
+  { text: "Focus on being productive instead of busy.", author: "Tim Ferriss" },
+  { text: "The harder you work for something, the greater you'll feel when you achieve it.", author: "Unknown" },
+  { text: "Don't stop when you're tired. Stop when you're done.", author: "Unknown" },
+  { text: "You've got what it takes, but it will take everything you've got.", author: "Unknown" },
+  { text: "Success doesn't come to you — you go to it.", author: "Marva Collins" },
+  { text: "A little progress each day adds up to big results.", author: "Satya Nani" },
+  { text: "The pain of discipline is far less than the pain of regret.", author: "Unknown" },
+  { text: "Your only limit is your mind.", author: "Unknown" },
+  { text: "Stay focused and never give up.", author: "Unknown" },
+  { text: "One day or day one — you decide.", author: "Unknown" },
+  { text: "Make each day your masterpiece.", author: "John Wooden" },
+];
+
+function getDailyQuote() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  const dayOfYear = Math.floor(diff / 86400000);
+  return QUOTES[dayOfYear % QUOTES.length];
+}
 
 const queryClient = new QueryClient();
 
@@ -32,6 +76,8 @@ function Chat() {
   } = useChat();
 
   const { conversations, saveConversation, deleteConversation } = useConversations();
+
+  const dailyQuote = useMemo(() => getDailyQuote(), []);
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -180,9 +226,32 @@ function Chat() {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4 text-center tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
               {welcomeMessage}
             </h1>
-            <p className="text-lg text-muted-foreground max-w-lg text-center mb-12">
+            <p className="text-lg text-muted-foreground max-w-lg text-center mb-8">
               Your AI study partner. No excuses, just progress.
             </p>
+
+            {/* Daily motivational quote */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="w-full max-w-xl px-4 mb-10"
+            >
+              <div className="relative rounded-2xl bg-card border border-border/50 px-6 py-4 shadow-sm flex items-start gap-3">
+                <Quote className="h-4 w-4 text-primary/60 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-[14px] text-card-foreground leading-relaxed italic">
+                    "{dailyQuote.text}"
+                  </p>
+                  <p className="text-[12px] text-muted-foreground mt-1.5 font-medium">
+                    — {dailyQuote.author}
+                  </p>
+                </div>
+                <span className="absolute top-2 right-3 text-[10px] text-muted-foreground/40 font-medium tracking-wide uppercase">
+                  Quote of the day
+                </span>
+              </div>
+            </motion.div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-3xl px-4">
               {starterQuestions.map((q, idx) => (
