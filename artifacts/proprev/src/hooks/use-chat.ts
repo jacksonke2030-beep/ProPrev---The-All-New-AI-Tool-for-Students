@@ -27,6 +27,13 @@ export function useChat() {
     setIsStreaming(false);
   }, []);
 
+  const restoreConversation = useCallback((msgs: Message[]) => {
+    setMessages(msgs.map((m) => ({ ...m, isStreaming: false })));
+    setPreviousResponseId(null);
+    setAttachedFile(null);
+    setIsStreaming(false);
+  }, []);
+
   const sendMessage = useCallback(
     async (content: string) => {
       if (!content.trim() && !attachedFile) return;
@@ -182,5 +189,6 @@ export function useChat() {
     attachedFile,
     removeAttachedFile,
     resetConversation,
+    restoreConversation,
   };
 }

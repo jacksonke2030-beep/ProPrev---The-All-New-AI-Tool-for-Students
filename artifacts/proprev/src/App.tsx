@@ -5,12 +5,15 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useGetChatConfig } from "@workspace/api-client-react";
 import { useChat } from "@/hooks/use-chat";
+import { useConversations } from "@/hooks/use-conversations";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { ConversationsSidebar } from "@/components/sidebar/ConversationsSidebar";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Terminal, RotateCcw } from "lucide-react";
+import { Sparkles, Terminal, RotateCcw, Menu } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { PomodoroTimer, TimerHeaderButton } from "@/components/timer/PomodoroTimer";
+import { SavedConversation } from "@/hooks/use-conversations";
 
 const queryClient = new QueryClient();
 
@@ -25,7 +28,10 @@ function Chat() {
     attachedFile,
     removeAttachedFile,
     resetConversation,
+    restoreConversation,
   } = useChat();
+
+  const { conversations, saveConversation, deleteConversation } = useConversations();
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -33,22 +39,41 @@ function Chat() {
   const [timerOpen, setTimerOpen] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
-  // When a suggestion sets a custom duration we pass it down via key so the
-  // panel remounts fresh with that value.
   const [timerKey, setTimerKey] = useState(0);
   const [timerPresetMinutes, setTimerPresetMinutes] = useState<number>(25);
+
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleTimerState = useCallback((seconds: number, running: boolean) => {
     setTimerSeconds(seconds);
     setTimerRunning(running);
   }, []);
 
-  // Called by timer suggestion chips inside MessageBubble
   const handleStartTimer = useCallback((minutes: number) => {
     setTimerPresetMinutes(minutes);
-    setTimerKey((k) => k + 1); // remount panel with fresh preset
+    setTimerKey((k) => k + 1);
     setTimerOpen(true);
   }, []);
+
+  // Save current conversation then start fresh
+  const handleNewChat = useCallback(() => {
+    if (messages.length > 0) {
+      saveConversation(messages);
+    }
+    resetConversation();
+  }, [messages, saveConversation, resetConversation]);
+
+  // Load a past conversation into the chat view
+  const handleLoadConversation = useCallback(
+    (conv: SavedConversation) => {
+      if (messages.length > 0) {
+        saveConversation(messages);
+      }
+      restoreConversation(conv.messages);
+    },
+    [messages, saveConversation, restoreConversation]
+  );
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -73,9 +98,28 @@ function Chat() {
 
   return (
     <div className="flex flex-col h-[100dvh] w-full bg-background overflow-hidden selection:bg-primary/30">
+      {/* Conversations sidebar */}
+      <ConversationsSidebar
+        open={sidebarOpen}
+        conversations={conversations}
+        onClose={() => setSidebarOpen(false)}
+        onLoad={handleLoadConversation}
+        onDelete={deleteConversation}
+      />
+
       {/* Header */}
-      <header className="relative flex items-center justify-between px-6 py-4 border-b border-border/40 bg-background/80 backdrop-blur-md z-10 shrink-0">
+      <header className="relative flex items-center justify-between px-4 py-4 border-b border-border/40 bg-background/80 backdrop-blur-md z-10 shrink-0">
         <div className="flex items-center gap-2.5">
+          {/* Hamburger — opens past conversations */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            data-testid="button-open-sidebar"
+            className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            title="Past conversations"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+
           <div className="h-8 w-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
             <Terminal className="h-4 w-4" />
           </div>
@@ -98,7 +142,7 @@ function Chat() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={resetConversation}
+              onClick={handleNewChat}
               data-testid="button-new-conversation"
               className="text-muted-foreground hover:text-foreground gap-1.5 text-xs"
             >
