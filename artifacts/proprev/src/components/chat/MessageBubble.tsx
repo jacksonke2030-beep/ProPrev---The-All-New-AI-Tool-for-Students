@@ -8,6 +8,35 @@ import remarkGfm from "remark-gfm";
 import { TaskTracker, extractTasks } from "@/components/chat/TaskTracker";
 
 // ---------------------------------------------------------------------------
+// Sources extraction — strip ### Sources block from rendered markdown,
+// parse filenames as citation fallback
+// ---------------------------------------------------------------------------
+
+interface ParsedSources {
+  cleanContent: string;
+  filenames: string[];
+}
+
+function extractAndStripSources(content: string): ParsedSources {
+  // Match a markdown heading that says "Sources" (any level, any case)
+  const headingMatch = content.match(/^#{1,4}\s+sources?\b.*$/im);
+  if (!headingMatch) return { cleanContent: content, filenames: [] };
+
+  const headingIdx = content.indexOf(headingMatch[0]);
+  const cleanContent = content.slice(0, headingIdx).trimEnd();
+  const sourcesBlock = content.slice(headingIdx + headingMatch[0].length);
+
+  const filenames: string[] = [];
+  for (const raw of sourcesBlock.split("\n")) {
+    const line = raw.trim().replace(/^[-*•\d.]+\s*/, "").trim();
+    if (!line || /^\[no sources/i.test(line) || line.length < 3) continue;
+    filenames.push(line);
+  }
+
+  return { cleanContent, filenames };
+}
+
+// ---------------------------------------------------------------------------
 // Timer suggestion detection
 // ---------------------------------------------------------------------------
 
@@ -71,14 +100,34 @@ export function MessageBubble({ message, onStartTimer }: MessageBubbleProps) {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // Strip the ### Sources block from the rendered content; parse filenames as fallback
+  const { cleanContent, filenames: parsedFilenames } = useMemo(
+    () =>
+      !isUser && message.content
+        ? extractAndStripSources(message.content)
+        : { cleanContent: message.content, filenames: [] },
+    [isUser, message.content]
+  );
+
+  // Merge annotation-based citations with text-parsed filenames (dedup by name)
+  const allCitations = useMemo(() => {
+    if (isUser || message.isStreaming) return [];
+    const base = message.citations ?? [];
+    const seen = new Set(base.map((c) => c.filename));
+    const extras = parsedFilenames
+      .filter((f) => !seen.has(f))
+      .map((f) => ({ filename: f }));
+    return [...base, ...extras];
+  }, [isUser, message.isStreaming, message.citations, parsedFilenames]);
+
   const suggestion =
-    !isUser && !message.isStreaming && !timerDismissed && message.content
-      ? detectTimerSuggestion(message.content)
+    !isUser && !message.isStreaming && !timerDismissed && cleanContent
+      ? detectTimerSuggestion(cleanContent)
       : null;
 
   const tasks = useMemo(
-    () => (!isUser && !message.isStreaming && message.content ? extractTasks(message.content) : []),
-    [isUser, message.isStreaming, message.content]
+    () => (!isUser && !message.isStreaming && cleanContent ? extractTasks(cleanContent) : []),
+    [isUser, message.isStreaming, cleanContent]
   );
 
   return (
@@ -143,7 +192,7 @@ export function MessageBubble({ message, onStartTimer }: MessageBubbleProps) {
                     "
                   >
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {message.content}
+                      {cleanContent}
                     </ReactMarkdown>
                   </div>
                 )}
@@ -183,10 +232,10 @@ export function MessageBubble({ message, onStartTimer }: MessageBubbleProps) {
           {/* Interactive task checklist */}
           {tasks.length > 0 && <TaskTracker tasks={tasks} />}
 
-          {/* Citations */}
-          {message.citations && message.citations.length > 0 && (
+          {/* Citations — always shown when present, sourced from annotations + text */}
+          {allCitations.length > 0 && (
             <div className="flex flex-wrap gap-2 mt-1 pb-1">
-              {message.citations.map((cite, idx) => (
+              {allCitations.map((cite, idx) => (
                 <Citation key={idx} filename={cite.filename} index={idx + 1} />
               ))}
             </div>
