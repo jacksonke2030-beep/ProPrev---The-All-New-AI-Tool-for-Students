@@ -5,10 +5,16 @@ import { cn } from "@/lib/utils";
 
 type Mode = "focus" | "short" | "long";
 
-const MODES: Record<Mode, { label: string; seconds: number; color: string; icon: typeof Brain }> = {
-  focus: { label: "Focus",       seconds: 25 * 60, color: "hsl(217 91% 60%)", icon: Brain },
-  short: { label: "Short Break", seconds: 5 * 60,  color: "hsl(142 71% 45%)", icon: Coffee },
-  long:  { label: "Long Break",  seconds: 15 * 60, color: "hsl(199 89% 48%)", icon: Coffee },
+const DEFAULT_SECONDS: Record<Mode, number> = {
+  focus: 25 * 60,
+  short: 5 * 60,
+  long:  15 * 60,
+};
+
+const MODE_META: Record<Mode, { label: string; color: string; icon: typeof Brain }> = {
+  focus: { label: "Focus",       color: "hsl(217 91% 60%)", icon: Brain },
+  short: { label: "Short Break", color: "hsl(142 71% 45%)", icon: Coffee },
+  long:  { label: "Long Break",  color: "hsl(199 89% 48%)", icon: Coffee },
 };
 
 function playDone() {
@@ -30,7 +36,7 @@ function playDone() {
   }
 }
 
-function formatTime(s: number) {
+export function formatTime(s: number) {
   const m = Math.floor(s / 60);
   const sec = s % 60;
   return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
@@ -41,37 +47,47 @@ const STROKE = 6;
 const RADIUS = (SIZE - STROKE) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
+// ---------------------------------------------------------------------------
+// PomodoroTimer panel
+// ---------------------------------------------------------------------------
+
 interface PomodoroTimerProps {
   onClose: () => void;
   onStateChange: (seconds: number, running: boolean) => void;
+  /** When set (via a chat suggestion), override the default focus duration. */
+  presetMinutes?: number;
 }
 
-export function PomodoroTimer({ onClose, onStateChange }: PomodoroTimerProps) {
+export function PomodoroTimer({ onClose, onStateChange, presetMinutes = 25 }: PomodoroTimerProps) {
+  const focusSeconds = presetMinutes * 60;
+
   const [mode, setMode] = useState<Mode>("focus");
-  const [secondsLeft, setSecondsLeft] = useState(MODES.focus.seconds);
+  const [secondsLeft, setSecondsLeft] = useState(focusSeconds);
   const [running, setRunning] = useState(false);
   const [sessions, setSessions] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const total = MODES[mode].seconds;
+  // total for the current mode (focus respects the preset)
+  const total = mode === "focus" ? focusSeconds : DEFAULT_SECONDS[mode];
   const progress = secondsLeft / total;
   const dashOffset = CIRCUMFERENCE * (1 - progress);
-  const modeColor = MODES[mode].color;
+  const modeColor = MODE_META[mode].color;
+  const ModeIcon = MODE_META[mode].icon;
 
-  // Report state up whenever it changes
+  // Report state up
   useEffect(() => {
     onStateChange(secondsLeft, running);
   }, [secondsLeft, running, onStateChange]);
 
   const reset = useCallback(() => {
     setRunning(false);
-    setSecondsLeft(MODES[mode].seconds);
-  }, [mode]);
+    setSecondsLeft(mode === "focus" ? focusSeconds : DEFAULT_SECONDS[mode]);
+  }, [mode, focusSeconds]);
 
   const switchMode = (m: Mode) => {
     setRunning(false);
     setMode(m);
-    setSecondsLeft(MODES[m].seconds);
+    setSecondsLeft(m === "focus" ? focusSeconds : DEFAULT_SECONDS[m]);
   };
 
   useEffect(() => {
@@ -94,7 +110,8 @@ export function PomodoroTimer({ onClose, onStateChange }: PomodoroTimerProps) {
     return () => clearInterval(intervalRef.current!);
   }, [running, mode]);
 
-  const ModeIcon = MODES[mode].icon;
+  // Custom label when preset overrides the default
+  const focusTabLabel = presetMinutes !== 25 ? `Focus (${presetMinutes}m)` : "Focus";
 
   return (
     <motion.div
@@ -121,7 +138,7 @@ export function PomodoroTimer({ onClose, onStateChange }: PomodoroTimerProps) {
 
       {/* Mode tabs */}
       <div className="flex gap-1 px-4 pb-3">
-        {(Object.keys(MODES) as Mode[]).map((m) => (
+        {(Object.keys(DEFAULT_SECONDS) as Mode[]).map((m) => (
           <button
             key={m}
             data-testid={`button-mode-${m}`}
@@ -133,49 +150,29 @@ export function PomodoroTimer({ onClose, onStateChange }: PomodoroTimerProps) {
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary/60"
             )}
           >
-            {MODES[m].label}
+            {m === "focus" ? focusTabLabel : MODE_META[m].label}
           </button>
         ))}
       </div>
 
       {/* Ring */}
       <div className="flex flex-col items-center pb-4">
-        <div
-          className="relative flex items-center justify-center"
-          style={{ width: SIZE, height: SIZE }}
-        >
-          {/* Background + progress ring */}
+        <div className="relative flex items-center justify-center" style={{ width: SIZE, height: SIZE }}>
           <svg width={SIZE} height={SIZE} className="absolute -rotate-90">
+            <circle cx={SIZE / 2} cy={SIZE / 2} r={RADIUS} fill="none" stroke="hsl(220 30% 15%)" strokeWidth={STROKE} />
             <circle
               cx={SIZE / 2} cy={SIZE / 2} r={RADIUS}
-              fill="none" stroke="hsl(220 30% 15%)" strokeWidth={STROKE}
-            />
-            <circle
-              cx={SIZE / 2} cy={SIZE / 2} r={RADIUS}
-              fill="none"
-              stroke={modeColor}
-              strokeWidth={STROKE}
-              strokeLinecap="round"
-              strokeDasharray={CIRCUMFERENCE}
-              strokeDashoffset={dashOffset}
+              fill="none" stroke={modeColor} strokeWidth={STROKE} strokeLinecap="round"
+              strokeDasharray={CIRCUMFERENCE} strokeDashoffset={dashOffset}
               style={{ transition: "stroke-dashoffset 0.8s linear" }}
             />
           </svg>
-
-          {/* Glow */}
-          <div
-            className="absolute inset-0 rounded-full opacity-20 blur-md"
-            style={{ background: modeColor, transform: "scale(0.75)" }}
-          />
-
-          {/* Center */}
+          <div className="absolute inset-0 rounded-full opacity-20 blur-md" style={{ background: modeColor, transform: "scale(0.75)" }} />
           <div className="relative flex flex-col items-center gap-0.5">
-            <span className="text-2xl font-bold tabular-nums text-foreground tracking-tight">
-              {formatTime(secondsLeft)}
-            </span>
+            <span className="text-2xl font-bold tabular-nums text-foreground tracking-tight">{formatTime(secondsLeft)}</span>
             <div className="flex items-center gap-1 text-muted-foreground">
               <ModeIcon className="h-3 w-3" />
-              <span className="text-[10px] font-medium">{MODES[mode].label}</span>
+              <span className="text-[10px] font-medium">{MODE_META[mode].label}</span>
             </div>
           </div>
         </div>
@@ -189,16 +186,11 @@ export function PomodoroTimer({ onClose, onStateChange }: PomodoroTimerProps) {
           >
             <RotateCcw className="h-4 w-4" />
           </button>
-
           <button
             onClick={() => setRunning((r) => !r)}
             data-testid="button-timer-toggle"
             className="flex items-center gap-2 px-5 py-2 rounded-full font-semibold text-sm transition-all"
-            style={{
-              background: modeColor,
-              color: "hsl(222 47% 6%)",
-              boxShadow: running ? `0 0 16px ${modeColor}55` : "none",
-            }}
+            style={{ background: modeColor, color: "hsl(222 47% 6%)", boxShadow: running ? `0 0 16px ${modeColor}55` : "none" }}
           >
             {running ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
             {running ? "Pause" : secondsLeft === total ? "Start" : "Resume"}
@@ -216,15 +208,9 @@ export function PomodoroTimer({ onClose, onStateChange }: PomodoroTimerProps) {
               <span>Sessions:</span>
               <div className="flex gap-1">
                 {Array.from({ length: Math.min(sessions, 8) }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="w-2 h-2 rounded-full"
-                    style={{ background: MODES.focus.color }}
-                  />
+                  <div key={i} className="w-2 h-2 rounded-full" style={{ background: MODE_META.focus.color }} />
                 ))}
-                {sessions > 8 && (
-                  <span className="text-foreground font-medium">+{sessions - 8}</span>
-                )}
+                {sessions > 8 && <span className="text-foreground font-medium">+{sessions - 8}</span>}
               </div>
             </motion.div>
           )}
@@ -243,11 +229,12 @@ export function PomodoroTimer({ onClose, onStateChange }: PomodoroTimerProps) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Header badge button
+// ---------------------------------------------------------------------------
+
 export function TimerHeaderButton({
-  active,
-  onClick,
-  secondsLeft,
-  running,
+  active, onClick, secondsLeft, running,
 }: {
   active: boolean;
   onClick: () => void;
@@ -267,9 +254,7 @@ export function TimerHeaderButton({
     >
       <Timer className="h-3.5 w-3.5" />
       {secondsLeft !== null ? (
-        <span className={cn("tabular-nums", running && "text-primary")}>
-          {formatTime(secondsLeft)}
-        </span>
+        <span className={cn("tabular-nums", running && "text-primary")}>{formatTime(secondsLeft)}</span>
       ) : (
         <span>Timer</span>
       )}

@@ -14,8 +14,6 @@ import { PomodoroTimer, TimerHeaderButton } from "@/components/timer/PomodoroTim
 
 const queryClient = new QueryClient();
 
-const FOCUS_TOTAL = 25 * 60;
-
 function Chat() {
   const { data: config, isLoading: isConfigLoading } = useGetChatConfig();
   const {
@@ -31,19 +29,26 @@ function Chat() {
 
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Timer state — lifted here so the header badge stays in sync with the panel
+  // Timer state
   const [timerOpen, setTimerOpen] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState<number | null>(null);
   const [timerRunning, setTimerRunning] = useState(false);
+  // When a suggestion sets a custom duration we pass it down via key so the
+  // panel remounts fresh with that value.
+  const [timerKey, setTimerKey] = useState(0);
+  const [timerPresetMinutes, setTimerPresetMinutes] = useState<number>(25);
 
-  // Callback so PomodoroTimer can report its current state up for the badge
-  const handleTimerState = useCallback(
-    (seconds: number, running: boolean) => {
-      setTimerSeconds(seconds);
-      setTimerRunning(running);
-    },
-    []
-  );
+  const handleTimerState = useCallback((seconds: number, running: boolean) => {
+    setTimerSeconds(seconds);
+    setTimerRunning(running);
+  }, []);
+
+  // Called by timer suggestion chips inside MessageBubble
+  const handleStartTimer = useCallback((minutes: number) => {
+    setTimerPresetMinutes(minutes);
+    setTimerKey((k) => k + 1); // remount panel with fresh preset
+    setTimerOpen(true);
+  }, []);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -78,11 +83,14 @@ function Chat() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Pomodoro timer button */}
           <TimerHeaderButton
             active={timerOpen}
             onClick={() => setTimerOpen((o) => !o)}
-            secondsLeft={timerSeconds !== null && timerSeconds !== FOCUS_TOTAL ? timerSeconds : null}
+            secondsLeft={
+              timerSeconds !== null && timerSeconds !== timerPresetMinutes * 60
+                ? timerSeconds
+                : null
+            }
             running={timerRunning}
           />
 
@@ -105,10 +113,12 @@ function Chat() {
           </div>
         </div>
 
-        {/* Timer panel (dropdown) */}
+        {/* Timer panel */}
         <AnimatePresence>
           {timerOpen && (
             <PomodoroTimer
+              key={timerKey}
+              presetMinutes={timerPresetMinutes}
               onClose={() => setTimerOpen(false)}
               onStateChange={handleTimerState}
             />
@@ -148,7 +158,11 @@ function Chat() {
         ) : (
           <div className="flex flex-col pb-8 pt-4">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} />
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                onStartTimer={handleStartTimer}
+              />
             ))}
             <div ref={bottomRef} className="h-6" />
           </div>
