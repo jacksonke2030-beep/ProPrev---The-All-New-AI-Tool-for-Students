@@ -133,7 +133,7 @@ function Chat() {
             <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-white/5 flex items-center justify-center mb-8 shadow-2xl shadow-primary/10">
               <Sparkles className="h-10 w-10 text-primary" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-4 text-center tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4 text-center tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
               {welcomeMessage}
             </h1>
             <p className="text-lg text-muted-foreground max-w-lg text-center mb-12">

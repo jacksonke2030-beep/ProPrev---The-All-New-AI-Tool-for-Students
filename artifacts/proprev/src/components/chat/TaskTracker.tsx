@@ -28,7 +28,15 @@ export function extractTasks(markdown: string): Task[] {
     const match = LIST_LINE_RE.exec(line);
     if (!match) continue;
 
-    const text = match[1].trim();
+    // Strip markdown formatting characters (bold, italic, code) from task text
+    const text = match[1]
+      .trim()
+      .replace(/\*\*/g, "")
+      .replace(/\*/g, "")
+      .replace(/__/g, "")
+      .replace(/_/g, "")
+      .replace(/`/g, "")
+      .trim();
     // Skip very short lines, pure heading-like text, or meta lines
     if (text.length < 8 || SKIP_RE.test(text)) continue;
     // Skip lines that are just a time marker like "25 min" alone
