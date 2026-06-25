@@ -10,18 +10,19 @@ import { MessageBubble } from "@/components/chat/MessageBubble";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ConversationsSidebar } from "@/components/sidebar/ConversationsSidebar";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Terminal, RotateCcw, Menu, Quote } from "lucide-react";
+import { Sparkles, Terminal, RotateCcw, Menu, Quote, Flame } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PomodoroTimer, TimerHeaderButton } from "@/components/timer/PomodoroTimer";
 import { SavedConversation } from "@/hooks/use-conversations";
+import { useStreak } from "@/hooks/use-streak";
 
 // ---------------------------------------------------------------------------
-// Daily motivational quote — rotates by day of year
+// Daily motivational quote — rotates by day of year, all real attributions
 // ---------------------------------------------------------------------------
 const QUOTES = [
   { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
   { text: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
-  { text: "Action is the foundational key to all success.", author: "Pablo Picasso" },
+  { text: "All our dreams can come true, if we have the courage to pursue them.", author: "Walt Disney" },
   { text: "The future depends on what you do today.", author: "Mahatma Gandhi" },
   { text: "Small daily improvements over time lead to stunning results.", author: "Robin Sharma" },
   { text: "Don't watch the clock; do what it does. Keep going.", author: "Sam Levenson" },
@@ -29,25 +30,25 @@ const QUOTES = [
   { text: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
   { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt" },
   { text: "Success is the sum of small efforts repeated day in and day out.", author: "Robert Collier" },
-  { text: "Push yourself, because no one else is going to do it for you.", author: "Unknown" },
-  { text: "Great things never come from comfort zones.", author: "Unknown" },
-  { text: "Dream it. Wish it. Do it.", author: "Unknown" },
+  { text: "Motivation is what gets you started. Habit is what keeps you going.", author: "Jim Ryun" },
+  { text: "Life begins at the end of your comfort zone.", author: "Neale Donald Walsch" },
+  { text: "The difference between ordinary and extraordinary is that little extra.", author: "Jimmy Johnson" },
   { text: "Hard work beats talent when talent doesn't work hard.", author: "Tim Notke" },
   { text: "Procrastination is the thief of time.", author: "Edward Young" },
-  { text: "You are capable of more than you know.", author: "Unknown" },
+  { text: "Whether you think you can or think you can't, you're right.", author: "Henry Ford" },
   { text: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
   { text: "Every expert was once a beginner.", author: "Helen Hayes" },
   { text: "Discipline is the bridge between goals and accomplishment.", author: "Jim Rohn" },
   { text: "Focus on being productive instead of busy.", author: "Tim Ferriss" },
-  { text: "The harder you work for something, the greater you'll feel when you achieve it.", author: "Unknown" },
-  { text: "Don't stop when you're tired. Stop when you're done.", author: "Unknown" },
-  { text: "You've got what it takes, but it will take everything you've got.", author: "Unknown" },
+  { text: "Champions keep playing until they get it right.", author: "Billie Jean King" },
+  { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
+  { text: "You have brains in your head. You have feet in your shoes. You can steer yourself any direction you choose.", author: "Dr. Seuss" },
   { text: "Success doesn't come to you — you go to it.", author: "Marva Collins" },
   { text: "A little progress each day adds up to big results.", author: "Satya Nani" },
-  { text: "The pain of discipline is far less than the pain of regret.", author: "Unknown" },
-  { text: "Your only limit is your mind.", author: "Unknown" },
-  { text: "Stay focused and never give up.", author: "Unknown" },
-  { text: "One day or day one — you decide.", author: "Unknown" },
+  { text: "We must all suffer one of two things: the pain of discipline or the pain of regret.", author: "Jim Rohn" },
+  { text: "The successful warrior is the average man, with laser-like focus.", author: "Bruce Lee" },
+  { text: "In the middle of every difficulty lies opportunity.", author: "Albert Einstein" },
+  { text: "You are never too old to set another goal or to dream a new dream.", author: "C.S. Lewis" },
   { text: "Make each day your masterpiece.", author: "John Wooden" },
 ];
 
@@ -76,6 +77,7 @@ function Chat() {
   } = useChat();
 
   const { conversations, saveConversation, deleteConversation } = useConversations();
+  const streak = useStreak();
 
   const dailyQuote = useMemo(() => getDailyQuote(), []);
 
@@ -226,9 +228,27 @@ function Chat() {
             <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-4 text-center tracking-tight bg-gradient-to-b from-foreground to-foreground/70 bg-clip-text text-transparent">
               {welcomeMessage}
             </h1>
-            <p className="text-lg text-muted-foreground max-w-lg text-center mb-8">
+            <p className="text-lg text-muted-foreground max-w-lg text-center mb-6">
               Your AI study partner. No excuses, just progress.
             </p>
+
+            {/* Streak counter */}
+            {streak > 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.1, duration: 0.35, type: "spring" }}
+                className="flex items-center gap-2 mb-6 px-4 py-2 rounded-full border border-orange-500/30 bg-orange-500/10"
+              >
+                <Flame className="h-4 w-4 text-orange-400 animate-pulse" />
+                <span className="text-sm font-semibold text-orange-300">
+                  {streak} day{streak !== 1 ? "s" : ""} streak
+                </span>
+                <span className="text-xs text-orange-400/70">
+                  {streak >= 7 ? "🔥 On fire!" : streak >= 3 ? "Keep it up!" : "Just getting started!"}
+                </span>
+              </motion.div>
+            )}
 
             {/* Daily motivational quote */}
             <motion.div
